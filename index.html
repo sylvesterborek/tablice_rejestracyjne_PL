@@ -2,212 +2,191 @@
 <html lang="pl">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Gra: Tablice rejestracyjne → kliknij powiat</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <title>Gra: Tablice rejestracyjne – powiaty</title>
 
-  <!-- Leaflet -->
-  <link
-    rel="stylesheet"
-    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-    crossorigin=""
-  />
-  <script
-    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-    crossorigin=""
-  ></script>
+  <link rel="stylesheet"
+        href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+        crossorigin="" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+          integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+          crossorigin=""></script>
 
   <style>
-    :root {
-      --bg: #0b0f19;
-      --panel: #111827;
-      --panel2: #0f172a;
-      --text: #e5e7eb;
-      --muted: #9ca3af;
-      --ok: #10b981;
-      --bad: #ef4444;
-      --accent: #60a5fa;
-      --border: rgba(255,255,255,0.08);
+    :root{
+      --bg:#0b0f19; --panel:#111827; --panel2:#0f172a;
+      --text:#e5e7eb; --muted:#9ca3af;
+      --ok:#10b981; --bad:#ef4444; --accent:#60a5fa;
+      --border:rgba(255,255,255,0.08);
+      --hudH:56px;
+    }
+    html, body{
+      height:100dvh; margin:0; overflow:hidden; background:var(--bg); color:var(--text);
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+    }
+    .app{ display:grid; grid-template-columns:360px 1fr; height:100dvh; }
+    .sidebar{
+      padding:16px; border-right:1px solid var(--border);
+      background:linear-gradient(180deg,var(--panel) 0%,var(--panel2) 100%);
+      overflow:auto; -webkit-overflow-scrolling:touch;
+    }
+    h1{ font-size:18px; margin:0 0 8px; }
+    .sub{ color:var(--muted); font-size:13px; margin-bottom:14px; line-height:1.3; }
+    .card{
+      border:1px solid var(--border); border-radius:14px; padding:12px;
+      background:rgba(255,255,255,0.03); margin-bottom:12px;
+    }
+    .label{ font-size:12px; color:var(--muted); margin-bottom:6px; }
+    .target{
+      font-size:18px; font-weight:900; letter-spacing:0.4px;
+      padding:10px 12px; border-radius:12px;
+      border:1px dashed rgba(255,255,255,0.18);
+      background:rgba(96,165,250,0.12);
+    }
+    .row{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-top:10px; }
+    .btn{
+      appearance:none; border:1px solid var(--border); background:rgba(255,255,255,0.06);
+      color:var(--text); padding:10px 12px; border-radius:12px;
+      font-weight:900; font-size:13px; cursor:pointer; min-height:38px;
+    }
+    .btn.primary{ background:rgba(96,165,250,0.18); border-color:rgba(96,165,250,0.35); }
+    .btn.danger{ background:rgba(239,68,68,0.14); border-color:rgba(239,68,68,0.30); }
+    .btn:disabled{ opacity:0.55; cursor:default; }
+    .stats{ display:flex; gap:10px; flex-wrap:wrap; font-size:13px; margin-top:10px; }
+    .stats span{ color:var(--muted); margin-right:6px; }
+    .msg{
+      margin-top:10px; font-size:13px; padding:10px 12px; border-radius:12px;
+      border:1px solid var(--border); background:rgba(255,255,255,0.03); min-height:18px;
+    }
+    .msg.ok{ border-color:rgba(16,185,129,0.35); background:rgba(16,185,129,0.10); }
+    .msg.bad{ border-color:rgba(239,68,68,0.35); background:rgba(239,68,68,0.10); }
+    .opts{ display:grid; gap:8px; font-size:13px; margin-top:10px; }
+    .opt{ display:flex; gap:10px; align-items:flex-start; user-select:none; }
+    .opt input{ margin-top:2px; }
+
+    #map{ height:100dvh; width:100%; }
+
+    .panelToggle{
+      position:absolute; left:12px; top:12px; z-index:1100;
+      border-radius:14px; padding:10px 12px; border:1px solid var(--border);
+      background:rgba(17,24,39,0.92); backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px);
+      color:var(--text); font-weight:900; cursor:pointer; display:none;
+    }
+    .backdrop{
+      position:fixed; inset:0; background:rgba(0,0,0,0.40); z-index:1050;
+      opacity:0; pointer-events:none; transition:opacity .2s ease;
+    }
+    .backdrop.show{ opacity:1; pointer-events:auto; }
+
+    .hud{
+      position:fixed; top:0; left:0; right:0; z-index:1200; display:none;
+      padding:calc(env(safe-area-inset-top) + 6px) 10px 8px;
+      background:rgba(17,24,39,0.92); backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px);
+      border-bottom:1px solid var(--border); gap:10px; align-items:center; justify-content:space-between;
+    }
+    .hud .hudLeft{ min-width:0; display:flex; flex-direction:column; gap:2px; flex:1 1 auto; }
+    .hud .hudLabel{ font-size:11px; color:var(--muted); line-height:1.1; }
+    .hud .hudTarget{
+      font-size:14px; font-weight:900; letter-spacing:0.3px; line-height:1.15;
+      white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+      padding:6px 10px; border-radius:12px;
+      border:1px dashed rgba(255,255,255,0.18); background:rgba(96,165,250,0.12);
+      max-width:100%;
+    }
+    .hud .hudRight{ display:flex; align-items:center; gap:8px; flex:0 0 auto; }
+    .hud .hudStats{ display:flex; flex-direction:column; gap:2px; text-align:right; font-size:12px; line-height:1.1; }
+    .hud .hudK{ color:var(--muted); font-size:11px; margin-right:6px; }
+    .hud .hudV{ font-weight:900; }
+    .hud .hudBtns{ display:flex; gap:6px; align-items:center; }
+    .hudBtn{
+      appearance:none; border:1px solid var(--border); background:rgba(255,255,255,0.06);
+      color:var(--text); padding:8px 10px; border-radius:12px; font-weight:900; font-size:12px;
+      line-height:1; min-height:36px; min-width:64px; cursor:pointer;
+    }
+    .hudBtn.primary{ background:rgba(96,165,250,0.18); border-color:rgba(96,165,250,0.35); }
+    .hudBtn.danger{ background:rgba(239,68,68,0.14); border-color:rgba(239,68,68,0.30); }
+    .hudBtn:disabled{ opacity:0.55; cursor:default; }
+
+    @media (max-width:900px){
+      .app{ grid-template-columns:1fr; }
+      .sidebar{
+        position:fixed; left:0; top:0; bottom:0; width:min(92vw,380px);
+        z-index:1150; transform:translateX(-105%); transition:transform .25s ease;
+        border-right:1px solid var(--border);
+      }
+      .sidebar.open{ transform:translateX(0); }
+      .panelToggle{ display:block; top:calc(env(safe-area-inset-top) + var(--hudH) + 10px); }
+      .hud{ display:flex; }
+      .leaflet-top.leaflet-left{ margin-top:calc(var(--hudH) + 12px); }
+      #map{ height:100dvh; }
     }
 
-    html, body { height: 100%; margin: 0; background: var(--bg); color: var(--text); font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; }
-    .app { display: grid; grid-template-columns: 360px 1fr; height: 100%; }
-    @media (max-width: 900px) { .app { grid-template-columns: 1fr; grid-template-rows: 380px 1fr; } }
-
-    .sidebar {
-      padding: 16px;
-      border-right: 1px solid var(--border);
-      background: linear-gradient(180deg, var(--panel) 0%, var(--panel2) 100%);
-      overflow: auto;
-    }
-    @media (max-width: 900px) { .sidebar { border-right: none; border-bottom: 1px solid var(--border); } }
-
-    h1 { font-size: 18px; margin: 0 0 8px; }
-    .sub { color: var(--muted); font-size: 13px; margin-bottom: 14px; line-height: 1.35; }
-
-    .card {
-      border: 1px solid var(--border);
-      border-radius: 14px;
-      padding: 12px;
-      background: rgba(255,255,255,0.03);
-      margin-bottom: 12px;
-    }
-
-    .label { font-size: 12px; color: var(--muted); margin-bottom: 6px; }
-    .target {
-      font-size: 26px;
-      font-weight: 900;
-      letter-spacing: 1px;
-      padding: 12px 14px;
-      border-radius: 12px;
-      border: 1px dashed rgba(255,255,255,0.18);
-      background: rgba(96,165,250,0.12);
-      text-align: center;
-    }
-
-    .row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px; }
-    button {
-      appearance: none;
-      border: 1px solid var(--border);
-      background: rgba(255,255,255,0.06);
-      color: var(--text);
-      padding: 10px 12px;
-      border-radius: 12px;
-      font-weight: 650;
-      cursor: pointer;
-      transition: transform 0.05s ease, background 0.15s ease, border-color 0.15s ease;
-      flex: 1 1 auto;
-    }
-    button:hover { background: rgba(255,255,255,0.10); }
-    button:active { transform: translateY(1px); }
-    button.primary { background: rgba(96,165,250,0.18); border-color: rgba(96,165,250,0.35); }
-    button.danger  { background: rgba(239,68,68,0.14); border-color: rgba(239,68,68,0.30); }
-    button[disabled] { opacity: 0.6; cursor: not-allowed; }
-
-    .stats {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 10px;
-      margin-top: 10px;
-    }
-    .stat {
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 10px;
-      background: rgba(255,255,255,0.03);
-    }
-    .stat .k { font-size: 12px; color: var(--muted); }
-    .stat .v { font-size: 20px; font-weight: 850; margin-top: 2px; }
-
-    .msg {
-      margin-top: 10px;
-      padding: 10px 12px;
-      border-radius: 12px;
-      border: 1px solid var(--border);
-      background: rgba(255,255,255,0.03);
-      min-height: 44px;
-      line-height: 1.25;
-      font-size: 14px;
-    }
-    .msg.ok { border-color: rgba(16,185,129,0.35); background: rgba(16,185,129,0.10); }
-    .msg.bad { border-color: rgba(239,68,68,0.35); background: rgba(239,68,68,0.10); }
-
-    .opt {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 10px;
-      margin-top: 10px;
-      padding: 10px 12px;
-      border-radius: 12px;
-      border: 1px solid var(--border);
-      background: rgba(255,255,255,0.03);
-      font-size: 13px;
-      color: var(--muted);
-    }
-    .opt input { transform: scale(1.05); }
-
-    #map { width: 100%; height: 100%; background: #e5e7eb; }
-
-    .footer {
-      font-size: 12px;
-      color: var(--muted);
-      margin-top: 14px;
-      line-height: 1.35;
-    }
-
-    code.inline {
-      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-      background: rgba(255,255,255,0.08);
-      padding: 2px 6px;
-      border-radius: 8px;
-      border: 1px solid var(--border);
-      color: #fff;
-    }
+    /* ✅ usuń focus/ramkę po tapnięciu na SVG (mobile) */
+    .leaflet-interactive:focus{ outline:none !important; }
+    svg:focus{ outline:none !important; }
   </style>
 </head>
-
 <body>
+
+  <div id="hud" class="hud">
+    <div class="hudLeft">
+      <div class="hudLabel">Wskaż powiat dla tablicy:</div>
+      <div id="hudTargetName" class="hudTarget">—</div>
+    </div>
+    <div class="hudRight">
+      <div class="hudStats">
+        <div><span class="hudK">Wynik</span><span id="hudScore" class="hudV">0</span></div>
+        <div><span class="hudK">Postęp</span><span id="hudDone" class="hudV">0</span>/<span id="hudTotal" class="hudV">0</span></div>
+      </div>
+      <div class="hudBtns">
+        <button id="hudNext" class="hudBtn primary" disabled>Dalej</button>
+        <button id="hudRestart" class="hudBtn danger">Reset</button>
+      </div>
+    </div>
+  </div>
+
+  <button id="panelToggle" class="panelToggle">☰</button>
+  <div id="backdrop" class="backdrop"></div>
+
   <div class="app">
     <aside class="sidebar">
-      <h1>Gra: tablice rejestracyjne → kliknij powiat</h1>
+      <h1>Gra: tablice rejestracyjne – powiaty</h1>
       <div class="sub">
-        Dostajesz <b>wyróżnik</b> (np. <code class="inline">SK</code>, <code class="inline">WA</code>), a Twoim zadaniem jest kliknąć właściwy powiat/miasto na mapie.
-        W trybie „Poznaj mapę” możesz włączyć tooltipy z nazwami.
+        Dostajesz <b>kod_tablicy</b> i klikasz odpowiedni powiat na mapie.
+        Zaznaczenia zostają: <span style="color:var(--ok);font-weight:900;">zielony</span> = trafione,
+        <span style="color:var(--bad);font-weight:900;">czerwony</span> = nietrafione.
       </div>
 
       <div class="card">
-        <div class="label">Kliknij obszar dla wyróżnika:</div>
-        <div class="target" id="targetCode">Ładowanie…</div>
+        <div class="label">Wskaż powiat dla kodu tablicy:</div>
+        <div id="targetName" class="target">—</div>
 
         <div class="row">
-          <button class="primary" id="btnNext" disabled>Następny</button>
-          <button class="danger" id="btnRestart" disabled>Restart</button>
+          <button id="btnNext" class="btn primary" disabled>Dalej</button>
+          <button id="btnRestart" class="btn danger">Reset</button>
         </div>
 
         <div class="stats">
-          <div class="stat">
-            <div class="k">Punkty</div>
-            <div class="v" id="score">0</div>
-          </div>
-          <div class="stat">
-            <div class="k">Postęp</div>
-            <div class="v"><span id="done">0</span>/<span id="total">0</span></div>
-          </div>
+          <div><span>Wynik:</span><b id="score">0</b></div>
+          <div><span>Postęp:</span><b id="done">0</b>/<b id="total">0</b></div>
         </div>
 
-        <div class="msg" id="message"></div>
+        <div id="message" class="msg"></div>
+      </div>
 
-        <div class="opt">
-          <label>
-            <input type="checkbox" id="learnMode" />
-            Poznaj mapę (tooltip z nazwą)
-          </label>
-        </div>
-
-        <div class="opt">
-          <label>
-            <input type="checkbox" id="showCorrect" checked />
-            Pokaż poprawny obszar po błędzie
-          </label>
-        </div>
-
-        <div class="opt">
-          <label>
-            <input type="checkbox" id="shuffleEachRun" checked />
-            Losuj kolejność (każdy restart)
-          </label>
-        </div>
-
-        <div class="opt">
-          <label>
-            <input type="checkbox" id="tilesOn" checked />
-            Pokaż mapę tła (OSM)
-          </label>
+      <div class="card">
+        <div class="label">Opcje</div>
+        <div class="opts">
+          <label class="opt"><input id="learnMode" type="checkbox" /> Tryb poznawania (tooltipy, brak punktów)</label>
+          <label class="opt"><input id="showCorrect" type="checkbox" checked /> Po błędzie pokaż poprawny powiat (półprzezroczysty zielony)</label>
+          <label class="opt"><input id="shuffleEachRun" type="checkbox" checked /> Losowa kolejność przy każdym starcie</label>
         </div>
       </div>
 
-      <div class="footer">
-        Wskazówka: na GitHub Pages plik powinien nazywać się <code class="inline">index.html</code>.
+      <div class="sub">
+        Uwaga: plik JSON musi być serwowany przez HTTP/HTTPS (np. nginx / python -m http.server),
+        bo przeglądarka blokuje <code>fetch</code> z <code>file://</code>.
       </div>
     </aside>
 
@@ -216,55 +195,51 @@
 
 <script>
 (async function () {
-  // ====== ŹRÓDŁA DANYCH ======
-  // GeoJSON powiatów (zewnętrzny, lekki). Jeśli wolisz lokalnie: wrzuć plik do repo i ustaw np. "powiaty-min.geojson".
-  const POWIATY_GEOJSON_URL = "https://raw.githubusercontent.com/ppatrzyk/polska-geojson/master/powiaty/powiaty-min.geojson";
+  // =======================
+  // USTAWIENIA / PLIKI
+  // =======================
+  const GEOJSON_FILE = "powiaty_z_kodem_tablicy.json";
+  const ID_FIELD = "JPT_KOD_JE";
+  const NAME_FIELD = "JPT_NAZWA_";
+  const QUESTION_FIELD = "Kod_tablicy";
 
-  // Wikipedia (PL) – tabela z wyróżnikami (API z CORS przez origin=*)
-  const WIKI_API_URL = "https://pl.wikipedia.org/w/api.php?action=parse&page=Tablice_rejestracyjne_w_Polsce&prop=text&formatversion=2&format=json&origin=*";
-
-  // ====== STYLE ======
+  // =======================
+  // STYLE
+  // =======================
   const baseStyle = {
-    color: "rgba(0,0,0,0.80)",
-    weight: 1.0,
-    opacity: 0.9,
+    color: "rgba(0,0,0,0.75)",
+    weight: 1.1,
+    opacity: 0.85,
     fillColor: "#60a5fa",
-    fillOpacity: 0.35
+    fillOpacity: 0.90
   };
+  const hoverStyle = { weight: 2.4, opacity: 1.0, fillOpacity: 0.82 };
+  const correctStyle = { color: "rgba(0,0,0,0.80)", weight: 2.4, fillColor: "#10b981", fillOpacity: 0.95 };
+  const wrongStyle   = { color: "rgba(0,0,0,0.80)", weight: 2.4, fillColor: "#ef4444", fillOpacity: 0.95 };
+  const revealCorrectStyle = { color: "rgba(0,0,0,0.80)", weight: 2.0, fillColor: "#10b981", fillOpacity: 0.28 };
 
-  const hoverStyle = {
-    weight: 2.4,
-    opacity: 1.0,
-    fillOpacity: 0.65
-  };
+  // =======================
+  // UI
+  // =======================
+  const elTarget = document.getElementById("targetName");
+  const elScore  = document.getElementById("score");
+  const elDone   = document.getElementById("done");
+  const elTotal  = document.getElementById("total");
+  const elMsg    = document.getElementById("message");
 
-  const correctStyle = {
-    color: "rgba(0,0,0,0.95)",
-    weight: 3.0,
-    fillColor: "#10b981",
-    fillOpacity: 0.75
-  };
+  const elHudTarget = document.getElementById("hudTargetName");
+  const elHudScore  = document.getElementById("hudScore");
+  const elHudDone   = document.getElementById("hudDone");
+  const elHudTotal  = document.getElementById("hudTotal");
+  const btnHudNext  = document.getElementById("hudNext");
+  const btnHudRestart = document.getElementById("hudRestart");
 
-  const wrongStyle = {
-    color: "rgba(0,0,0,0.95)",
-    weight: 3.0,
-    fillColor: "#ef4444",
-    fillOpacity: 0.75
-  };
-
-  const revealCorrectStyle = {
-    color: "rgba(0,0,0,0.95)",
-    weight: 3.0,
-    fillColor: "#10b981",
-    fillOpacity: 0.25
-  };
-
-  // ====== UI ======
-  const elTarget = document.getElementById("targetCode");
-  const elScore = document.getElementById("score");
-  const elDone  = document.getElementById("done");
-  const elTotal = document.getElementById("total");
-  const elMsg   = document.getElementById("message");
+  function setHudHeightVar(){
+    const hud = document.getElementById("hud");
+    if (!hud) return;
+    const h = Math.max(44, Math.round(hud.getBoundingClientRect().height));
+    document.documentElement.style.setProperty("--hudH", h + "px");
+  }
 
   const btnNext = document.getElementById("btnNext");
   const btnRestart = document.getElementById("btnRestart");
@@ -272,299 +247,304 @@
   const chkLearnMode = document.getElementById("learnMode");
   const chkShowCorrect = document.getElementById("showCorrect");
   const chkShuffleEachRun = document.getElementById("shuffleEachRun");
-  const chkTilesOn = document.getElementById("tilesOn");
 
-  function setMessage(text, type) {
-    elMsg.classList.remove("ok", "bad");
+  // MOBILE drawer
+  const sidebar = document.querySelector(".sidebar");
+  const btnPanel = document.getElementById("panelToggle");
+  const backdrop = document.getElementById("backdrop");
+
+  // =======================
+  // MAPA + PODKŁADY
+  // =======================
+  const map = L.map("map", { zoomControl: true });
+
+  function setPanel(open) {
+    if (!sidebar || !btnPanel || !backdrop) return;
+    sidebar.classList.toggle("open", open);
+    backdrop.classList.toggle("show", open);
+    setTimeout(() => map.invalidateSize(), 260);
+  }
+  if (btnPanel && backdrop && sidebar) {
+    btnPanel.addEventListener("click", () => setPanel(!sidebar.classList.contains("open")));
+    backdrop.addEventListener("click", () => setPanel(false));
+  }
+
+  function setMessage(text, type){
+    elMsg.classList.remove("ok","bad");
     if (type === "ok") elMsg.classList.add("ok");
     if (type === "bad") elMsg.classList.add("bad");
     elMsg.textContent = text || "";
   }
 
-  // ====== MAPA ======
-  const map = L.map("map", { zoomControl: true });
+  // lepsze działanie po zmianie orientacji
+  window.addEventListener("resize", () => map.invalidateSize());
+  window.addEventListener("orientationchange", () => setTimeout(() => map.invalidateSize(), 250));
 
-  let tiles = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-    maxZoom: 19,
-    attribution: '&copy; OpenStreetMap'
-  }).addTo(map);
-
-  chkTilesOn.addEventListener("change", () => {
-    if (chkTilesOn.checked) {
-      if (!map.hasLayer(tiles)) tiles.addTo(map);
-    } else {
-      if (map.hasLayer(tiles)) map.removeLayer(tiles);
-    }
-  });
-
-  // ====== NORMALIZACJA NAZW ======
-  function stripDiacritics(s) {
-    return (s || "")
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "");
-  }
-
-  function normalizeAreaName(s) {
-    if (!s) return "";
-    let x = s.toString().trim();
-
-    // usuń przypisy, dopiski, nawiasy
-    x = x.replace(/\(.*?\)/g, " ");
-    x = x.replace(/\s+/g, " ").trim();
-
-    // popularne prefiksy
-    x = x
-      .replace(/^powiat\s+/i, "")
-      .replace(/^m\.\s*/i, "")
-      .replace(/^miasto\s+/i, "")
-      .replace(/^miasto\s+na\s+prawach\s+powiatu\s+/i, "")
-      .replace(/^powiat\s+m\.\s*/i, "");
-
-    x = x.replace(/\s+/g, " ").trim();
-    x = stripDiacritics(x).toLowerCase();
-    return x;
-  }
-
-  function extractNameFromFeatureProps(props) {
-    if (!props) return "";
-    const candidates = [
-      "name", "NAME", "nazwa", "NAZWA",
-      "powiat", "Powiat",
-      "JPT_NAZWA_", "JPT_NAZWA", "JPT_NAZWA1",
-      "jpt_nazwa_", "jpt_nazwa"
-    ];
-    for (const k of candidates) {
-      if (props[k]) return String(props[k]).trim();
-    }
-    // fallback: szukaj pierwszego sensownego stringa
-    for (const k of Object.keys(props)) {
-      const v = props[k];
-      if (typeof v === "string" && v.trim().length >= 3) return v.trim();
-    }
-    return "";
-  }
-
-  // ====== WIKIPEDIA: WYCIĄGNIĘCIE KODÓW ======
-  function codesFromCellText(text) {
-    // np. "SK", "SBI", "WA, WB" itd.
-    // bierzemy tylko 1–3 litery (bez cyfr / myślników)
-    const raw = (text || "").toUpperCase();
-    const matches = raw.match(/[A-ZĄĆĘŁŃÓŚŹŻ]{1,3}/g) || [];
-    // w praktyce tablice to A–Z (bez polskich znaków), więc filtrujemy:
-    const cleaned = matches
-      .map(x => x.replace(/[^A-Z]/g, ""))
-      .filter(x => x.length >= 1 && x.length <= 3);
-    // usuń duplikaty
-    return Array.from(new Set(cleaned));
-  }
-
-  async function loadWikiCodes() {
-    const res = await fetch(WIKI_API_URL);
-    if (!res.ok) throw new Error("Nie udało się pobrać danych z Wikipedii.");
-    const data = await res.json();
-    const html = data?.parse?.text;
-    if (!html) throw new Error("Wikipedia API zwróciło nieoczekiwany format.");
-
-    const doc = new DOMParser().parseFromString(html, "text/html");
-
-    // tabela z nagłówkiem zawierającym "Wyróżnik" oraz "Powiat"/"Miasto"
-    const tables = Array.from(doc.querySelectorAll("table"));
-    let target = null;
-
-    for (const t of tables) {
-      const headerText = t.querySelector("tr")?.innerText?.toLowerCase() || "";
-      if (headerText.includes("wyróżnik") && (headerText.includes("powiat") || headerText.includes("miasto"))) {
-        target = t;
-        break;
-      }
-    }
-    if (!target) {
-      target = tables.find(t => (t.innerText || "").toLowerCase().includes("wyróżnik")) || null;
-    }
-    if (!target) throw new Error("Nie znalazłem tabeli z wyróżnikami na Wikipedii.");
-
-    const rows = Array.from(target.querySelectorAll("tr")).slice(1);
-
-    const tmp = new Map(); // normalized name -> codes[]
-    for (const tr of rows) {
-      const tds = Array.from(tr.querySelectorAll("td"));
-      if (tds.length < 2) continue;
-
-      const codeCell = (tds[0].innerText || "").trim();
-      const areaCell = (tds[1].innerText || "").trim();
-      if (!codeCell || !areaCell) continue;
-
-      const codes = codesFromCellText(codeCell);
-      if (!codes.length) continue;
-
-      const key = normalizeAreaName(areaCell);
-      if (!key) continue;
-
-      if (!tmp.has(key)) tmp.set(key, []);
-      const arr = tmp.get(key);
-      for (const c of codes) {
-        if (!arr.includes(c)) arr.push(c);
-      }
-    }
-
-    return tmp;
-  }
-
-  // ====== GEOJSON POWIATÓW ======
-  async function loadPowiatyGeojson() {
-    const res = await fetch(POWIATY_GEOJSON_URL, { cache: "no-store" });
-    if (!res.ok) throw new Error("Nie udało się pobrać granic powiatów (GeoJSON).");
-    const geo = await res.json();
-    if (!geo || geo.type !== "FeatureCollection" || !Array.isArray(geo.features) || !geo.features.length) {
-      throw new Error("GeoJSON ma zły format lub nie zawiera obiektów.");
-    }
-    return geo;
-  }
-
-  // ====== BUDOWANIE PYTAŃ ======
-  // quizItem: { code, key, name }
-  function buildQuizItems(powiatyGeo, codesByArea) {
-    const items = [];
-    for (const f of powiatyGeo.features) {
-      const nm = extractNameFromFeatureProps(f.properties);
-      const key = normalizeAreaName(nm);
-      const codes = codesByArea.get(key);
-      if (!codes || !codes.length) continue;
-      for (const code of codes) {
-        items.push({ code, key, name: nm });
-      }
-    }
-    // usuń duplikaty (czasem ta sama para może się zdublować)
-    const seen = new Set();
-    const unique = [];
-    for (const it of items) {
-      const k = it.code + "|" + it.key;
-      if (seen.has(k)) continue;
-      seen.add(k);
-      unique.push(it);
-    }
-    return unique;
-  }
-
-  // ====== TOOLTIP ======
-  function applyTooltip(layer, name) {
-    layer.unbindTooltip();
-    if (chkLearnMode.checked) {
-      layer.bindTooltip(name || "", { sticky: true });
-    }
-  }
-
-  // ====== STAN GRY ======
-  const state = {
-    items: [],
-    idx: 0,
-    score: 0,
-    done: 0,
-    locked: false,
-    current: null,      // current quizItem
-    lastClicked: null,  // layer
-    lastCorrect: null,  // layer
+  const baseLayers = {
+    "Color Mode (OSM)": L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      maxZoom: 19, attribution: "&copy; OpenStreetMap"
+    }),
+    "Dark Mode (CartoDB)": L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
+      maxZoom: 19, attribution: "&copy; OpenStreetMap &copy; CARTO"
+    })
   };
+  baseLayers["Color Mode (OSM)"].addTo(map);
+  L.control.layers(baseLayers, null, { collapsed: true }).addTo(map);
 
-  function shuffle(array) {
-    for (let i = array.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [array[i], array[j]] = [array[j], array[i]];
+  // =======================
+  // WCZYTANIE JSON
+  // =======================
+  let geo;
+  try{
+    const res = await fetch(GEOJSON_FILE, { cache:"no-store" });
+    if(!res.ok) throw new Error("HTTP " + res.status);
+    geo = await res.json();
+  } catch(e){
+    setMessage("Nie udało się wczytać pliku " + GEOJSON_FILE + ". Upewnij się, że działa przez HTTP/HTTPS.", "bad");
+    console.error(e);
+    return;
+  }
+  if(!geo || geo.type !== "FeatureCollection" || !Array.isArray(geo.features)){
+    setMessage("Plik JSON ma zły format (musi być FeatureCollection).", "bad");
+    return;
+  }
+
+  const layerById = new Map();
+  const statusById = new Map(); // id -> "ok" | "bad"
+
+  function styleForId(id){
+    const st = statusById.get(id);
+    if (st === "ok") return { ...correctStyle };
+    if (st === "bad") return { ...wrongStyle };
+    return { ...baseStyle };
+  }
+  function applyPersistentStyle(layer){
+    const p = layer?.feature?.properties || {};
+    const id = (p[ID_FIELD] ?? "").toString().trim();
+    layer.setStyle(styleForId(id));
+  }
+
+  const allItems = geo.features.map(f => {
+    const p = f.properties || {};
+    const id = (p[ID_FIELD] ?? "").toString().trim();
+    const name = (p[NAME_FIELD] ?? "").toString().trim();
+    const plate = (p[QUESTION_FIELD] ?? "").toString().trim();
+    return (id && plate) ? { id, name, plate } : null;
+  }).filter(Boolean);
+
+  // Unikalne po Kod_tablicy (żeby zawsze była 1 dobra odpowiedź)
+  const seenPlate = new Set();
+  const uniqueItems = [];
+  for (const it of allItems){
+    if (seenPlate.has(it.plate)) continue;
+    seenPlate.add(it.plate);
+    uniqueItems.push(it);
+  }
+
+  elTotal.textContent = uniqueItems.length.toString();
+  if (elHudTotal) elHudTotal.textContent = uniqueItems.length.toString();
+  setHudHeightVar();
+
+  function applyTooltip(layer, name, plate){
+    layer.unbindTooltip();
+    if (chkLearnMode.checked){
+      const t = (name ? name : "—") + (plate ? (" • " + plate) : "");
+      layer.bindTooltip(t, { sticky:true });
+    }
+  }
+
+  const state = { items:[], idx:0, score:0, done:0, locked:false, current:null };
+
+  function shuffle(array){
+    for(let i=array.length-1;i>0;i--){
+      const j = Math.floor(Math.random()*(i+1));
+      [array[i],array[j]] = [array[j],array[i]];
     }
     return array;
   }
 
-  function resetAllStyles() {
-    geoLayer.eachLayer(l => geoLayer.resetStyle(l));
+  const geoLayer = L.geoJSON(geo, {
+    style: (feature) => {
+      const p = feature.properties || {};
+      const id = (p[ID_FIELD] ?? "").toString().trim();
+      return styleForId(id);
+    },
+    onEachFeature: (feature, layer) => {
+      const p = feature.properties || {};
+      const id = (p[ID_FIELD] ?? "").toString().trim();
+      const name = (p[NAME_FIELD] ?? "").toString().trim();
+      const plate = (p[QUESTION_FIELD] ?? "").toString().trim();
+
+      if (id) layerById.set(id, layer);
+
+      applyTooltip(layer, name, plate);
+      chkLearnMode.addEventListener("change", () => applyTooltip(layer, name, plate));
+
+      if (!L.Browser.touch){
+        layer.on("mouseover", () => {
+          if (state.locked) return;
+          const st = styleForId(id);
+          layer.setStyle({ ...st, ...hoverStyle });
+          layer.bringToFront();
+        });
+        layer.on("mouseout", () => {
+          if (state.locked) return;
+          applyPersistentStyle(layer);
+        });
+      }
+
+      layer.on("click", () => {
+        // ✅ usuń focus-ramkę po tapnięciu
+        const el = (layer.getElement && layer.getElement()) || layer._path;
+        if (el && el.blur) el.blur();
+
+        if (chkLearnMode.checked) return;
+        if (state.locked) return;
+        handleClick(id, name, plate, layer);
+      });
+    }
+  }).addTo(map);
+
+  // Startowy widok – tylko raz (nie na kliknięciu)
+  try { map.fitBounds(geoLayer.getBounds(), { padding:[12,12] }); }
+  catch(_) { map.setView([52.1, 19.4], 6); }
+
+  function resetAllStyles(){
+    geoLayer.eachLayer(l => applyPersistentStyle(l));
   }
 
-  function resetAfterRound() {
-    if (state.lastClicked) geoLayer.resetStyle(state.lastClicked);
-    if (state.lastCorrect && state.lastCorrect !== state.lastClicked) geoLayer.resetStyle(state.lastCorrect);
-    state.lastClicked = null;
-    state.lastCorrect = null;
+  function startGame(){
+    state.items = uniqueItems.slice();
+    if (chkShuffleEachRun.checked) shuffle(state.items);
+
+    state.idx = 0; state.score = 0; state.done = 0; state.locked = false; state.current = null;
+
+    statusById.clear();
+    resetAllStyles();
+
+    elScore.textContent = "0";
+    elDone.textContent  = "0";
+    if (elHudScore) elHudScore.textContent = "0";
+    if (elHudDone)  elHudDone.textContent  = "0";
+
+    btnNext.disabled = true;
+    if (btnHudNext) btnHudNext.disabled = true;
+
+    btnRestart.disabled = false;
+    if (btnHudRestart) btnHudRestart.disabled = false;
+
+    nextQuestion();
   }
 
-  function setCounters() {
-    elScore.textContent = String(state.score);
-    elDone.textContent = String(state.done);
-  }
-
-  function nextQuestion() {
-    resetAfterRound();
-
-    if (chkLearnMode.checked) {
-      elTarget.textContent = "TRYB NAUKI";
+  function nextQuestion(){
+    if (chkLearnMode.checked){
+      elTarget.textContent = "Tryb poznawania mapy";
+      if (elHudTarget) elHudTarget.textContent = "Tryb poznawania mapy";
+      setHudHeightVar();
       setMessage("Tooltipy są włączone. Kliknięcia nie punktują. Odznacz tryb, aby grać.", "");
       btnNext.disabled = true;
+      if (btnHudNext) btnHudNext.disabled = true;
       state.locked = false;
       return;
     }
 
-    if (state.idx >= state.items.length) {
+    if (state.idx >= state.items.length){
       elTarget.textContent = "KONIEC 🎉";
+      if (elHudTarget) elHudTarget.textContent = "KONIEC 🎉";
+      setHudHeightVar();
       setMessage(`Koniec! Wynik: ${state.score}/${state.items.length}.`, "ok");
       btnNext.disabled = true;
+      if (btnHudNext) btnHudNext.disabled = true;
       state.locked = true;
       return;
     }
 
     state.current = state.items[state.idx];
-    elTarget.textContent = state.current.code;
-    setMessage("Kliknij właściwy powiat/miasto na mapie.", "");
+    elTarget.textContent = state.current.plate;
+    if (elHudTarget) elHudTarget.textContent = state.current.plate;
+    setHudHeightVar();
+
+    setMessage("Kliknij właściwy powiat na mapie.", "");
     btnNext.disabled = true;
+    if (btnHudNext) btnHudNext.disabled = true;
     state.locked = false;
+
+    setPanel(false);
   }
 
-  function handleClick(clickedKey, clickedName, layer) {
-    state.locked = true;
+  function handleClick(clickedId, clickedName, clickedPlate, layer){
+  state.locked = true;
+  const target = state.current;
+  const isCorrect = (clickedId || "") === (target.id || "");
 
-    const target = state.current;
-    const isCorrect = clickedKey === target.key;
-
-    layer.setStyle(isCorrect ? correctStyle : wrongStyle);
+  if (isCorrect){
+    // ✅ poprawnie: zaznaczamy kliknięty (to jest cel)
+    statusById.set(clickedId, "ok");
+    applyPersistentStyle(layer);
     layer.bringToFront();
-    state.lastClicked = layer;
 
-    state.done += 1;
+    state.score += 1;
+    elScore.textContent = state.score.toString();
+    if (elHudScore) elHudScore.textContent = state.score.toString();
+    setMessage(`✅ Dobrze! (${target.plate} → ${target.name || "powiat"})`, "ok");
+  } else {
+    // ❌ błędnie: NIE kolorujemy klikniętego obszaru,
+    // tylko oznaczamy jako "błędnie odgadnięty" obszar, który był do znalezienia (target)
+    statusById.set(target.id, "bad");
 
-    if (isCorrect) {
-      state.score += 1;
-      setMessage("✅ Dobrze!", "ok");
-    } else {
-      setMessage(`❌ Źle. Poprawnie: ${target.name}`, "bad");
-      if (chkShowCorrect.checked) {
-        const correctLayer = layerByKey.get(target.key);
-        if (correctLayer) {
-          correctLayer.setStyle(revealCorrectStyle);
-          correctLayer.bringToFront();
-          state.lastCorrect = correctLayer;
-        }
+    // przywróć styl klikniętego (żeby nie został przypadkiem z hoverem)
+    applyPersistentStyle(layer);
+
+    const targetLayer = layerById.get(target.id);
+    if (targetLayer){
+      if (chkShowCorrect.checked){
+        // najpierw pokaż poprawny obszar (zielony półprzezroczysty),
+        // a po chwili ustaw trwały status (czerwony = nie odgadnięto)
+        targetLayer.setStyle(revealCorrectStyle);
+        targetLayer.bringToFront();
+        setTimeout(() => applyPersistentStyle(targetLayer), 1200);
+      } else {
+        applyPersistentStyle(targetLayer);
+        targetLayer.bringToFront();
       }
     }
 
-    setCounters();
-    btnNext.disabled = false;
-    state.idx += 1;
+    setMessage(
+      `❌ Źle. Kliknięto: ${clickedName || "powiat"} (${clickedPlate || "—"}). ` +
+      `Poprawny był: ${target.name || "powiat"} (${target.plate || "—"}).`,
+      "bad"
+    );
   }
+
+  state.done += 1;
+  elDone.textContent = state.done.toString();
+  if (elHudDone) elHudDone.textContent = state.done.toString();
+
+  btnNext.disabled = false;
+  if (btnHudNext) btnHudNext.disabled = false;
+
+  state.idx += 1;
+}
 
   btnNext.addEventListener("click", () => nextQuestion());
   btnRestart.addEventListener("click", () => startGame());
+  if (btnHudNext) btnHudNext.addEventListener("click", () => nextQuestion());
+  if (btnHudRestart) btnHudRestart.addEventListener("click", () => startGame());
+
+  setTimeout(setHudHeightVar, 50);
+  window.addEventListener("resize", () => setTimeout(setHudHeightVar, 50));
+  window.addEventListener("orientationchange", () => setTimeout(setHudHeightVar, 200));
 
   chkLearnMode.addEventListener("change", () => {
     state.locked = false;
     btnNext.disabled = true;
-    resetAfterRound();
+    if (btnHudNext) btnHudNext.disabled = true;
     resetAllStyles();
 
-    // przełącz tooltipy
-    geoLayer.eachLayer(layer => {
-      const nm = layer?.feature?._nm || "";
-      applyTooltip(layer, nm);
-    });
-
-    if (chkLearnMode.checked) {
-      elTarget.textContent = "TRYB NAUKI";
+    if (chkLearnMode.checked){
+      elTarget.textContent = "Tryb poznawania mapy";
+      if (elHudTarget) elHudTarget.textContent = "Tryb poznawania mapy";
+      setHudHeightVar();
       setMessage("Tooltipy są włączone. Kliknięcia nie punktują. Odznacz tryb, aby grać.", "");
     } else {
       setMessage("Tryb gry: tooltipy wyłączone.", "");
@@ -572,97 +552,7 @@
     }
   });
 
-  // ====== Wczytanie danych + inicjalizacja mapy ======
-  let powiatyGeo = null;
-  let codesByArea = null;
-
-  try {
-    setMessage("Ładowanie granic powiatów…", "");
-    powiatyGeo = await loadPowiatyGeojson();
-
-    setMessage("Ładowanie wyróżników tablic…", "");
-    codesByArea = await loadWikiCodes();
-  } catch (e) {
-    console.error(e);
-    elTarget.textContent = "BŁĄD";
-    setMessage(String(e?.message || e), "bad");
-    return;
-  }
-
-  const quizItems = buildQuizItems(powiatyGeo, codesByArea);
-  if (!quizItems.length) {
-    elTarget.textContent = "BŁĄD";
-    setMessage("Nie udało się dopasować wyróżników do powiatów. (Zmienił się format danych).", "bad");
-    return;
-  }
-
-  elTotal.textContent = String(quizItems.length);
-
-  const layerByKey = new Map(); // normalized key -> layer
-  let geoLayer = L.geoJSON(powiatyGeo, {
-    style: () => ({ ...baseStyle }),
-    onEachFeature: (feature, layer) => {
-      const name = extractNameFromFeatureProps(feature.properties);
-      const key = normalizeAreaName(name);
-
-      // zapamiętaj nazwę do tooltipów
-      feature._nm = name;
-      layer.feature._nm = name;
-
-      // mapowanie do podglądu poprawnej odpowiedzi
-      if (key && !layerByKey.has(key)) layerByKey.set(key, layer);
-
-      applyTooltip(layer, name);
-
-      layer.on("mouseover", () => {
-        if (state.locked) return;
-        if (chkLearnMode.checked) return; // w trybie nauki nie podbijaj stylu
-        layer.setStyle({ ...hoverStyle });
-        layer.bringToFront();
-      });
-
-      layer.on("mouseout", () => {
-        if (state.locked) return;
-        if (chkLearnMode.checked) return;
-        geoLayer.resetStyle(layer);
-      });
-
-      layer.on("click", () => {
-        if (chkLearnMode.checked) return;
-        if (state.locked) return;
-        handleClick(key, name, layer);
-      });
-    }
-  }).addTo(map);
-
-  try {
-    map.fitBounds(geoLayer.getBounds(), { padding: [12, 12] });
-  } catch (_) {
-    map.setView([52.1, 19.4], 6);
-  }
-
-  function startGame() {
-    state.items = quizItems.slice();
-    if (chkShuffleEachRun.checked) shuffle(state.items);
-
-    state.idx = 0;
-    state.score = 0;
-    state.done = 0;
-    state.locked = false;
-    state.current = null;
-    state.lastClicked = null;
-    state.lastCorrect = null;
-
-    setCounters();
-    btnNext.disabled = true;
-    btnRestart.disabled = false;
-
-    resetAllStyles();
-    nextQuestion();
-  }
-
   startGame();
-
 })();
 </script>
 
